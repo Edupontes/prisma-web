@@ -7,7 +7,7 @@ import authRoutes from "./routes/auth.js"; // ⬅️ adicione isto
 const app = Fastify({ logger: true });
 
 await app.register(cors, {
-  origin: [env.FRONT_ORIGIN],
+  origin: [env.FRONT_ORIGINS],
   credentials: true,
 });
 

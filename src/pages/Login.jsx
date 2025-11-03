@@ -1,9 +1,10 @@
 // src/pages/Login.jsx
 import styled from "styled-components";
 import { useState } from "react";
-import Button from "@/components/Button"; // se não tiver path alias, use "./../components/Button"
+import Button from "@/components/Button";
 import Input from "@/components/Input";
 import logo from "@/assets/logo-prisma.jpg";
+import { useNavigate } from "react-router-dom";
 
 const Wrap = styled.div`
   min-height: 100dvh;
@@ -84,6 +85,7 @@ const TogglePwd = styled.button`
   cursor: pointer;
   font-size: 0.875rem;
 `;
+
 const Footer = styled.p`
   text-align: center;
   margin-top: 1rem;
@@ -91,10 +93,20 @@ const Footer = styled.p`
   color: ${({ theme }) => theme.textSecondary};
   opacity: 0.8;
 `;
+
 const FieldLabel = styled.label`
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
+`;
+
+const ErrorBox = styled.div`
+  background: ${({ theme }) => theme.error}11;
+  border: 1px solid ${({ theme }) => theme.error}44;
+  color: ${({ theme }) => theme.error};
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
 `;
 
 export default function Login() {
@@ -102,26 +114,59 @@ export default function Login() {
   const [pwd, setPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [remember, setRemember] = useState(true);
+  const navigate = useNavigate();
 
-  //const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  // novos estados
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const userOk = user.trim().length >= 4;
   const pwdOk = pwd.length >= 8;
   const formValid = userOk && pwdOk;
 
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!formValid || loading) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:4000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // importante p/ cookie
+        body: JSON.stringify({
+          username: user.trim(),
+          password: pwd,
+          remember,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // back manda { error: "..."}
+        setError(data?.error || "Não foi possível entrar.");
+      } else {
+        console.log("LOGIN OK ✅", data);
+        navigate("/portal");
+        // aqui na próxima etapa: redirect para /dashboard
+      }
+    } catch (err) {
+      setError("Erro ao conectar ao servidor.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <Wrap>
       <div>
-        <Card
-          as="form"
-          aria-labelledby="login-title"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (formValid) {
-              //todo chamar API fe autenticação no futuro
-              //ex: await api.post('/auth/login', {user,pwd, remember})
-            }
-          }}
-        >
+        <Card as="form" aria-labelledby="login-title" onSubmit={handleSubmit}>
           <Header>
             <img src={logo} alt="Prisma" />
             <h1 id="login-title">Entrar</h1>
@@ -141,16 +186,7 @@ export default function Login() {
           />
 
           <div>
-            <label
-              htmlFor="password"
-              style={{
-                display: "block",
-                marginBottom: ".5rem",
-                fontWeight: 500,
-              }}
-            >
-              Senha
-            </label>
+            <FieldLabel htmlFor="password">Senha</FieldLabel>
             <PasswordWrap>
               <Input
                 id="password"
@@ -173,18 +209,22 @@ export default function Login() {
           </div>
 
           <Row>
-            <FieldLabel htmlFor="password">
+            <FieldLabel htmlFor="remember" style={{ marginBottom: 0 }}>
               <Checkbox
+                id="remember"
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
               />
+              {"  "}
               Lembrar-me
             </FieldLabel>
             <MutedLink href="#">Esqueci a senha</MutedLink>
           </Row>
 
-          <Button type="submit" disabled={!formValid}>
-            Entrar
+          {error ? <ErrorBox>{error}</ErrorBox> : null}
+
+          <Button type="submit" disabled={!formValid || loading}>
+            {loading ? "Entrando..." : "Entrar"}
           </Button>
 
           <p
