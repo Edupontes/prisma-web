@@ -2,8 +2,8 @@
 import styled from "styled-components";
 import { useState } from "react";
 import Button from "@/components/Button"; // se não tiver path alias, use "./../components/Button"
-import Input from "@/components/Input"; // idem
-import logo from "@/assets/logo-prisma.jpg"; // ajuste o caminho se necessário
+import Input from "@/components/Input";
+import logo from "@/assets/logo-prisma.jpg";
 
 const Wrap = styled.div`
   min-height: 100dvh;
