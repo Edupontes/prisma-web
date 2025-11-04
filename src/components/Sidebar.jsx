@@ -1,5 +1,6 @@
 // src/components/Sidebar.jsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -136,10 +137,32 @@ const Footer = styled.div`
 export default function Sidebar({ me }) {
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState("dashboard");
+  const navigate = useNavigate();
   const tenantLabel = me?.tenant?.name || me?.tenant?.slug || "Prisma Web";
+
+  // mapa: chave do botão → rota real
+  const routeMap = {
+    dashboard: "/portal",
+    propostas: "/portal/propostas",
+    comercial: "/portal/comercial/corretores", // pode cair na de corretores por padrão
+    "fin-dashboard": "/portal/financas",
+    "fin-comissao": "/portal/financas/comissoes/gerar",
+    "fin-baixa": "/portal/financas/comissoes/baixa",
+    "fin-boleto": "/portal/financas/boletos/emitir",
+    "fin-lista-boleto": "/portal/financas/boletos",
+    "cad-operadoras": "/portal/cadastros/operadoras",
+    "cad-tabela": "/portal/cadastros/tabelas-preco",
+    "cfg-comissao": "/portal/config/comissoes",
+    "cfg-usuarios": "/portal/config/usuarios",
+    "cfg-integracoes": "/portal/config/integracoes",
+  };
 
   function handleSelect(key) {
     setActive(key);
+    const to = routeMap[key];
+    if (to) {
+      navigate(to);
+    }
   }
 
   const groups = [

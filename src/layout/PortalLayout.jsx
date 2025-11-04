@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import Sidebar from "@/components/Sidebar";
+import { Outlet } from "react-router-dom";
 
 const Shell = styled.div`
   min-height: 100dvh;
@@ -126,7 +127,7 @@ const Main = styled.main`
   min-width: 0;
 `;
 
-export default function PortalLayout({ children }) {
+export default function PortalLayout() {
   const [me, setMe] = useState(null);
 
   useEffect(() => {
@@ -189,7 +190,9 @@ export default function PortalLayout({ children }) {
             <LogoutBtn onClick={handleLogout}>Sair</LogoutBtn>
           </Right>
         </Topbar>
-        <Main>{children}</Main>
+        <Main>
+          <Outlet />
+        </Main>
       </MainArea>
     </Shell>
   );
