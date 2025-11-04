@@ -3,16 +3,8 @@ import { createBrowserRouter } from "react-router-dom";
 import Login from "@/pages/Login";
 import ProtectedRoute from "./ProtectedRoute";
 import PortalLayout from "@/layout/PortalLayout";
-
-// placeholders simples
-const Placeholder = ({ title }) => (
-  <div>
-    <h2>{title}</h2>
-    <p style={{ opacity: 0.7 }}>
-      (tela em construção — vamos detalhar quando chegar na etapa deste módulo)
-    </p>
-  </div>
-);
+import Placeholder from "@/pages/Placeholder";
+import CadastrosOperadoras from "@/pages/CadastrosOperadoras";
 
 const router = createBrowserRouter([
   {
@@ -90,7 +82,7 @@ const router = createBrowserRouter([
       // CADASTROS
       {
         path: "cadastros/operadoras",
-        element: <Placeholder title="Operadoras / Produtos" />,
+        element: <CadastrosOperadoras />,
       },
       {
         path: "cadastros/tabelas-preco",
