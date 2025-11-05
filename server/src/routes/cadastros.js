@@ -17,6 +17,12 @@ export default async function cadastrosRoutes(app) {
     const rows = db.select().from(operators).all();
     return rows;
   });
+  // coloca esse helper no topo do arquivo
+  function toLocalDateFromYMD(ymd) {
+    // espera "2025-11-01"
+    const [year, month, day] = ymd.split("-").map(Number);
+    return new Date(year, month - 1, day); // <- sem fuso maluco
+  }
 
   app.post("/operators", async (req, reply) => {
     const schema = z.object({
@@ -194,16 +200,18 @@ export default async function cadastrosRoutes(app) {
   app.get("/price-tables", async (req) => {
     const operatorId = req.query?.operatorId;
     const planId = req.query?.planId;
+    const status = req.query?.status; // "active" ou "inactive"
 
-    let query = db.select().from(priceTables);
+    let rows = db.select().from(priceTables).all();
 
-    // para simplificar, vamos filtrar manualmente aqui
-    let rows = query.all();
     if (operatorId) {
       rows = rows.filter((r) => r.operatorId === operatorId);
     }
     if (planId) {
       rows = rows.filter((r) => r.planId === planId);
+    }
+    if (status && (status === "active" || status === "inactive")) {
+      rows = rows.filter((r) => (r.status ?? "active") === status);
     }
 
     return rows;
@@ -219,21 +227,25 @@ export default async function cadastrosRoutes(app) {
     return items;
   });
 
+  // criar tabela de preço (aceitando formato "simples" do front)
   app.post("/price-tables", async (req, reply) => {
-    // vamos aceitar tabela e itens de uma vez
+    // vamos aceitar tanto o formato antigo (startsAt) quanto o novo (effectiveDate)
     const schema = z.object({
       operatorId: z.string().min(8),
       planId: z.string().min(8),
-      title: z.string().min(2),
-      startsAt: z.string(), // vamos receber string e transformar
+      // título opcional, se vier a gente salva, se não a gente monta
+      title: z.string().optional(),
+      // pode vir como startsAt (teu modelo anterior) ou effectiveDate (front novo)
+      startsAt: z.string().optional(),
+      effectiveDate: z.string().optional(),
       endsAt: z.string().optional(),
       notes: z.string().optional(),
       items: z
         .array(
           z.object({
             ageRange: z.string().min(1),
-            amountEnf: z.number().nonnegative().optional(),
-            amountApt: z.number().nonnegative().optional(),
+            amountEnf: z.number().nonnegative().nullable().optional(),
+            amountApt: z.number().nonnegative().nullable().optional(),
           })
         )
         .default([]),
@@ -245,36 +257,140 @@ export default async function cadastrosRoutes(app) {
     }
     const data = parsed.data;
 
-    const starts = new Date(data.startsAt);
+    // decidir data de início
+    const startsRaw = data.effectiveDate ?? data.startsAt;
+    if (!startsRaw) {
+      return reply.status(400).send({ error: "Data de vigência obrigatória." });
+    }
+
+    const starts = toLocalDateFromYMD(startsRaw);
     const ends = data.endsAt ? new Date(data.endsAt) : null;
 
-    // cria a tabela
-    const tableId = `TAB_${createId()}`; /* ou `TAB_${crypto.randomUUID()}`;*/
+    // título default se não vier
+    const resolvedTitle =
+      data.title ??
+      `Tabela ${starts.toLocaleDateString("pt-BR")} ${
+        data.notes ? `- ${data.notes}` : ""
+      }`;
+
+    const tableId = `TAB_${createId()}`;
 
     db.insert(priceTables)
       .values({
         id: tableId,
         operatorId: data.operatorId,
         planId: data.planId,
-        title: data.title,
+        title: resolvedTitle,
         startsAt: starts,
         endsAt: ends,
         notes: data.notes,
+        status: "active",
       })
       .run();
 
-    // cria os itens
+    // itens
     for (const item of data.items) {
       db.insert(priceTableItems)
         .values({
           tableId,
           ageRange: item.ageRange,
-          amountEnf: item.amountEnf ?? null,
-          amountApt: item.amountApt ?? null,
+          amountEnf: typeof item.amountEnf === "number" ? item.amountEnf : null,
+          amountApt: typeof item.amountApt === "number" ? item.amountApt : null,
         })
         .run();
     }
 
     return reply.status(201).send({ ok: true, id: tableId });
+  });
+  // atualizar tabela de preço
+  app.put("/price-tables/:id", async (req, reply) => {
+    const id = req.params.id;
+
+    const schema = z.object({
+      operatorId: z.string().min(8).optional(),
+      planId: z.string().min(8).optional(),
+      title: z.string().optional(),
+      startsAt: z.string().optional(),
+      effectiveDate: z.string().optional(),
+      endsAt: z.string().optional(),
+      notes: z.string().optional(),
+      status: z.enum(["active", "inactive"]).optional(),
+      items: z
+        .array(
+          z.object({
+            ageRange: z.string().min(1),
+            amountEnf: z.number().nonnegative().nullable().optional(),
+            amountApt: z.number().nonnegative().nullable().optional(),
+          })
+        )
+        .optional(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Dados inválidos" });
+    }
+
+    const data = parsed.data;
+
+    // monta só o que veio
+    const updateData = {};
+
+    if (data.operatorId) updateData.operatorId = data.operatorId;
+    if (data.planId) updateData.planId = data.planId;
+    if (data.title) updateData.title = data.title;
+    if (data.notes) updateData.notes = data.notes;
+    if (data.status) updateData.status = data.status;
+
+    // datas: pode vir startsAt ou effectiveDate
+    if (data.effectiveDate) {
+      updateData.startsAt = toLocalDateFromYMD(data.effectiveDate);
+    } else if (data.startsAt) {
+      updateData.startsAt = toLocalDateFromYMD(data.startsAt);
+    }
+
+    if (data.endsAt) {
+      updateData.endsAt = new Date(data.endsAt);
+    }
+
+    // só faz update se tiver algo pra atualizar
+    if (Object.keys(updateData).length > 0) {
+      await db
+        .update(priceTables)
+        .set(updateData)
+        .where(eq(priceTables.id, id))
+        .run();
+    }
+
+    // se vierem itens, substitui
+    if (data.items && data.items.length > 0) {
+      db.delete(priceTableItems).where(eq(priceTableItems.tableId, id)).run();
+
+      for (const item of data.items) {
+        db.insert(priceTableItems)
+          .values({
+            tableId: id,
+            ageRange: item.ageRange,
+            amountEnf:
+              typeof item.amountEnf === "number" ? item.amountEnf : null,
+            amountApt:
+              typeof item.amountApt === "number" ? item.amountApt : null,
+          })
+          .run();
+      }
+    }
+
+    return reply.send({ ok: true });
+  });
+
+  app.delete("/price-tables/:id", async (req, reply) => {
+    const id = req.params.id;
+
+    // apaga itens primeiro
+    db.delete(priceTableItems).where(eq(priceTableItems.tableId, id)).run();
+    // apaga cabeçalho
+    db.delete(priceTables).where(eq(priceTables.id, id)).run();
+
+    return reply.send({ ok: true });
   });
 }

@@ -42,6 +42,49 @@ sqlite.exec(`
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS operators (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    code TEXT,
+    cnpj TEXT,
+    type TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS plans (
+    id TEXT PRIMARY KEY,
+    operator_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    segmentation TEXT,
+    coverage TEXT,
+    coparticipation TEXT,
+    external_code TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS price_tables (
+    id TEXT PRIMARY KEY,
+    operator_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    starts_at INTEGER NOT NULL,
+    ends_at INTEGER,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS price_table_items (
+    id TEXT PRIMARY KEY,
+    table_id TEXT NOT NULL,
+    age_range TEXT NOT NULL,
+    amount_enf REAL,
+    amount_apt REAL,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 export const db = drizzle(sqlite);

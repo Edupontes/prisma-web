@@ -93,6 +93,7 @@ export const priceTables = sqliteTable("price_tables", {
   startsAt: integer("starts_at", { mode: "timestamp" }).notNull(),
   endsAt: integer("ends_at", { mode: "timestamp" }), // opcional
   notes: text("notes"),
+  status: text("status").notNull().default("active"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

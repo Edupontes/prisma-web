@@ -5,6 +5,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import PortalLayout from "@/layout/PortalLayout";
 import Placeholder from "@/pages/Placeholder";
 import CadastrosOperadoras from "@/pages/CadastrosOperadoras";
+import CadastrosTabelasPreco from "@/pages/CadastrosTabelasPreco";
 
 const router = createBrowserRouter([
   {
@@ -86,7 +87,7 @@ const router = createBrowserRouter([
       },
       {
         path: "cadastros/tabelas-preco",
-        element: <Placeholder title="Tabelas de Preço" />,
+        element: <CadastrosTabelasPreco />,
       },
 
       // CONFIGURAÇÕES
