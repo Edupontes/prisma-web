@@ -6,6 +6,7 @@ import PortalLayout from "@/layout/PortalLayout";
 import Placeholder from "@/pages/Placeholder";
 import CadastrosOperadoras from "@/pages/CadastrosOperadoras";
 import CadastrosTabelasPreco from "@/pages/CadastrosTabelasPreco";
+import ConfigComissoes from "@/pages/ConfigComissoes";
 
 const router = createBrowserRouter([
   {
@@ -93,7 +94,7 @@ const router = createBrowserRouter([
       // CONFIGURAÇÕES
       {
         path: "config/comissoes",
-        element: <Placeholder title="Regras de Comissão" />,
+        element: <ConfigComissoes />,
       },
       {
         path: "config/usuarios",

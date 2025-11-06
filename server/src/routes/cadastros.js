@@ -6,6 +6,10 @@ import {
   plans,
   priceTables,
   priceTableItems,
+  commissionProfiles,
+  commissionProfileRules,
+  commissionPlanRules,
+  commissionOverrides,
 } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -391,6 +395,167 @@ export default async function cadastrosRoutes(app) {
     // apaga cabeçalho
     db.delete(priceTables).where(eq(priceTables.id, id)).run();
 
+    return reply.send({ ok: true });
+  });
+  // ============================
+  // 4) COMISSÕES
+  // ============================
+
+  // 4.1 perfis (lista)
+  app.get("/commission-profiles", async () => {
+    const rows = db.select().from(commissionProfiles).all();
+    return rows;
+  });
+
+  // 4.2 criar perfil
+  app.post("/commission-profiles", async (req, reply) => {
+    const schema = z.object({
+      name: z.string().min(2),
+      description: z.string().optional(),
+      status: z.enum(["active", "inactive"]).default("active"),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Dados inválidos" });
+    }
+    const data = parsed.data;
+
+    const id = `CMP_${createId()}`;
+    db.insert(commissionProfiles)
+      .values({
+        id,
+        name: data.name,
+        description: data.description,
+        status: data.status,
+      })
+      .run();
+
+    return reply.status(201).send({ id, ...data });
+  });
+
+  // 4.3 atualizar perfil
+  app.put("/commission-profiles/:id", async (req, reply) => {
+    const id = req.params.id;
+    const schema = z.object({
+      name: z.string().min(2).optional(),
+      description: z.string().optional(),
+      status: z.enum(["active", "inactive"]).optional(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Dados inválidos" });
+    }
+    const data = parsed.data;
+
+    await db
+      .update(commissionProfiles)
+      .set(data)
+      .where(eq(commissionProfiles.id, id))
+      .run();
+
+    return reply.send({ ok: true });
+  });
+
+  // 4.4 excluir perfil
+  app.delete("/commission-profiles/:id", async (req, reply) => {
+    const id = req.params.id;
+    // apaga também as regras dele
+    db.delete(commissionProfileRules)
+      .where(eq(commissionProfileRules.profileId, id))
+      .run();
+    db.delete(commissionProfiles).where(eq(commissionProfiles.id, id)).run();
+    return reply.send({ ok: true });
+  });
+
+  // 4.5 listar regras de um perfil
+  app.get("/commission-profiles/:id/rules", async (req) => {
+    const id = req.params.id;
+    const rows = db
+      .select()
+      .from(commissionProfileRules)
+      .where(eq(commissionProfileRules.profileId, id))
+      .all();
+    return rows;
+  });
+
+  // 4.6 criar regra para um perfil
+  app.post("/commission-profiles/:id/rules", async (req, reply) => {
+    const profileId = req.params.id;
+
+    const schema = z.object({
+      operatorId: z.string().min(1),
+      planId: z.string().min(1),
+      commissionPercent: z.number().nonnegative(),
+      parcel1: z.number().nonnegative().default(0),
+      parcel2: z.number().nonnegative().default(0),
+      parcel3: z.number().nonnegative().default(0),
+      notes: z.string().optional(),
+      status: z.enum(["active", "inactive"]).default("active"),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Dados inválidos" });
+    }
+    const data = parsed.data;
+
+    const id = createId();
+    db.insert(commissionProfileRules)
+      .values({
+        id,
+        profileId,
+        operatorId: data.operatorId,
+        planId: data.planId,
+        commissionPercent: data.commissionPercent,
+        parcel1: data.parcel1 ?? 0,
+        parcel2: data.parcel2 ?? 0,
+        parcel3: data.parcel3 ?? 0,
+        notes: data.notes,
+        status: data.status,
+      })
+      .run();
+
+    return reply.status(201).send({ id });
+  });
+
+  // 4.7 atualizar regra
+  app.put("/commission-profile-rules/:ruleId", async (req, reply) => {
+    const ruleId = req.params.ruleId;
+
+    const schema = z.object({
+      operatorId: z.string().optional(),
+      planId: z.string().optional(),
+      commissionPercent: z.number().nonnegative().optional(),
+      parcel1: z.number().nonnegative().optional(),
+      parcel2: z.number().nonnegative().optional(),
+      parcel3: z.number().nonnegative().optional(),
+      notes: z.string().optional(),
+      status: z.enum(["active", "inactive"]).optional(),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Dados inválidos" });
+    }
+    const data = parsed.data;
+
+    await db
+      .update(commissionProfileRules)
+      .set(data)
+      .where(eq(commissionProfileRules.id, ruleId))
+      .run();
+
+    return reply.send({ ok: true });
+  });
+
+  // 4.8 excluir regra
+  app.delete("/commission-profile-rules/:ruleId", async (req, reply) => {
+    const ruleId = req.params.ruleId;
+    db.delete(commissionProfileRules)
+      .where(eq(commissionProfileRules.id, ruleId))
+      .run();
     return reply.send({ ok: true });
   });
 }

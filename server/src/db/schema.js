@@ -115,3 +115,83 @@ export const priceTableItems = sqliteTable("price_table_items", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// 5. Perfis de comissão (standard, premium, especial...)
+export const commissionProfiles = sqliteTable("commission_profiles", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => `CMP_${createId()}`),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("active"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// 6. Regras por perfil (perfil X para o plano Y da operadora Z)
+export const commissionProfileRules = sqliteTable("commission_profile_rules", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  profileId: text("profile_id")
+    .notNull()
+    .references(() => commissionProfiles.id),
+  operatorId: text("operator_id")
+    .notNull()
+    .references(() => operators.id),
+  planId: text("plan_id")
+    .notNull()
+    .references(() => plans.id),
+  // comissão em %
+  commissionPercent: real("commission_percent").notNull().default(0),
+  // parcelas em %
+  parcel1: real("parcel_1").notNull().default(0),
+  parcel2: real("parcel_2").notNull().default(0),
+  parcel3: real("parcel_3").notNull().default(0),
+  notes: text("notes"),
+  status: text("status").notNull().default("active"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// 7. Regras padrão por plano (comissão do produto)
+export const commissionPlanRules = sqliteTable("commission_plan_rules", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  operatorId: text("operator_id")
+    .notNull()
+    .references(() => operators.id),
+  planId: text("plan_id")
+    .notNull()
+    .references(() => plans.id),
+  commissionPercent: real("commission_percent").notNull().default(0),
+  parcel1: real("parcel_1").notNull().default(0),
+  parcel2: real("parcel_2").notNull().default(0),
+  parcel3: real("parcel_3").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// 8. Overrides por corretor (ainda que o corretor não exista ainda, já deixamos preparado)
+export const commissionOverrides = sqliteTable("commission_overrides", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  // futuramente você vai ter a tabela de corretores e vai referenciar aqui
+  brokerId: text("broker_id"),
+  operatorId: text("operator_id").references(() => operators.id),
+  planId: text("plan_id").references(() => plans.id),
+  commissionPercent: real("commission_percent").notNull().default(0),
+  parcel1: real("parcel_1").notNull().default(0),
+  parcel2: real("parcel_2").notNull().default(0),
+  parcel3: real("parcel_3").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
